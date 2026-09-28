@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dog Grooming Ad</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  /* ✏️ EDIT THESE to match your business */
+  :root {
+    --bg: #FFD23F;       /* sunny yellow */
+    --accent: #FF5A7A;   /* bubblegum pink */
+    --ink: #1D3557;      /* deep navy text */
+    --teal: #2EC4B6;
+    --white: #FFFFFF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1080px; height: 1080px; overflow: hidden; background: var(--bg); font-family: 'Nunito', sans-serif; }
+  .ad { position: relative; width: 1080px; height: 1080px; overflow: hidden; background: radial-gradient(circle at 70% 62%, #FFE27A 0 34%, var(--bg) 35%); }
+
+  .blob { position: absolute; border-radius: 50%; }
+  .b1 { width: 520px; height: 520px; background: var(--teal); right: -140px; bottom: -150px; }
+  .b2 { width: 180px; height: 180px; background: var(--accent); left: -60px; top: 560px; opacity: .9; }
+
+  .bubble { position: absolute; border-radius: 50%; border: 5px solid var(--white); background: rgba(255,255,255,.35); }
+
+  .top { position: absolute; left: 80px; top: 80px; right: 80px; }
+  .brand { display: inline-block; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 30px; color: var(--white); background: var(--ink); padding: 12px 26px; border-radius: 999px; letter-spacing: .5px; }
+  h1 { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--ink); font-size: 128px; line-height: .95; margin-top: 34px; letter-spacing: -2px; }
+  h1 span { color: var(--accent); }
+  .sub { font-size: 34px; font-weight: 800; color: var(--ink); margin-top: 26px; }
+
+  .dog { position: absolute; right: 30px; bottom: 40px; width: 560px; }
+
+  .bottom { position: absolute; left: 80px; bottom: 90px; }
+  .cta { display: inline-block; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 44px; color: var(--white); background: var(--accent); padding: 22px 48px; border-radius: 999px; box-shadow: 0 10px 0 #C73E5B; }
+  .contact { font-size: 30px; font-weight: 800; color: var(--ink); margin-top: 34px; }
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+
+  <div class="bubble" style="width:70px;height:70px;left:560px;top:520px"></div>
+  <div class="bubble" style="width:40px;height:40px;left:640px;top:470px"></div>
+  <div class="bubble" style="width:100px;height:100px;right:70px;top:430px"></div>
+  <div class="bubble" style="width:34px;height:34px;right:190px;top:390px"></div>
+
+  <div class="top">
+    <div class="brand">🐾 YOUR BUSINESS NAME</div>
+    <h1>Fresh Cut.<br><span>Happy Pup.</span></h1>
+    <p class="sub">Baths · Haircuts · Nails · De-shedding</p>
+  </div>
+
+  <!-- Fluffy groomed pup -->
+  <svg class="dog" viewBox="0 0 400 410" xmlns="http://www.w3.org/2000/svg">
+    <!-- body -->
+    <ellipse cx="200" cy="330" rx="130" ry="80" fill="#FFF7EC"/>
+    <!-- ears -->
+    <ellipse cx="105" cy="170" rx="48" ry="85" fill="#E9B98A" transform="rotate(18 105 170)"/>
+    <ellipse cx="295" cy="170" rx="48" ry="85" fill="#E9B98A" transform="rotate(-18 295 170)"/>
+    <!-- head fluff -->
+    <circle cx="200" cy="175" r="110" fill="#FFF7EC"/>
+    <circle cx="140" cy="95" r="42" fill="#FFF7EC"/>
+    <circle cx="200" cy="72" r="46" fill="#FFF7EC"/>
+    <circle cx="260" cy="95" r="42" fill="#FFF7EC"/>
+    <!-- bow -->
+    <path d="M200 58 L165 38 L165 78 Z" fill="#FF5A7A"/>
+    <path d="M200 58 L235 38 L235 78 Z" fill="#FF5A7A"/>
+    <circle cx="200" cy="58" r="11" fill="#C73E5B"/>
+    <!-- eyes -->
+    <circle cx="160" cy="170" r="15" fill="#1D3557"/>
+    <circle cx="240" cy="170" r="15" fill="#1D3557"/>
+    <circle cx="165" cy="164" r="5" fill="#fff"/>
+    <circle cx="245" cy="164" r="5" fill="#fff"/>
+    <!-- cheeks -->
+    <ellipse cx="135" cy="205" rx="17" ry="10" fill="#FFB3C1"/>
+    <ellipse cx="265" cy="205" rx="17" ry="10" fill="#FFB3C1"/>
+    <!-- muzzle -->
+    <ellipse cx="200" cy="215" rx="52" ry="38" fill="#FFFFFF"/>
+    <ellipse cx="200" cy="198" rx="20" ry="14" fill="#1D3557"/>
+    <path d="M200 212 Q200 232 182 234 M200 212 Q200 232 218 234" stroke="#1D3557" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M190 236 Q200 262 210 236 Z" fill="#FF5A7A"/>
+    <!-- sparkles -->
+    <path d="M330 60 l8 22 22 8 -22 8 -8 22 -8 -22 -22 -8 22 -8z" fill="#FFFFFF"/>
+    <path d="M60 250 l5 14 14 5 -14 5 -5 14 -5 -14 -14 -5 14 -5z" fill="#FFFFFF"/>
+    <!-- paws -->
+    <ellipse cx="150" cy="385" rx="36" ry="20" fill="#FFFFFF"/>
+    <ellipse cx="250" cy="385" rx="36" ry="20" fill="#FFFFFF"/>
+  </svg>
+
+  <div class="bottom">
+    <div class="cta">Book Today →</div>
+    <p class="contact">📞 (555) 123-4567<br>📍 Your City</p>
+  </div>
+</div>
+</body>
+</html>
