@@ -4,36 +4,39 @@
 <meta charset="utf-8">
 <title>Scruffy to Fluffy Facebook Cover</title>
 <style>
-  /* 1640x856 upload. Desktop shows the middle 1640x624 band, mobile trims the sides,
-     so all key content sits inside y 150-700, x 120-1520. */
+  /* 1500x1000 (3:2) so the Facebook phone app shows the whole cover.
+     The profile picture covers the bottom-centre (x 430-1070, y 490+), and the
+     bottom ~9% at the sides is hidden, so content sits in the top band and
+     the two lower corners. */
   :root { --navy: #1B2556; --teal: #1A9AA6; --teal-dark: #127A85; --sun: #FFD23F; --white: #FFFFFF; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { width: 1640px; height: 856px; overflow: hidden; font-family: 'Trebuchet MS', 'Segoe UI', Arial, sans-serif; }
-  .cover { position: relative; width: 1640px; height: 856px; overflow: hidden;
-           background: radial-gradient(circle at 72% 50%, #23B3BF 0 22%, var(--teal) 48%, var(--teal-dark) 100%); }
+  body { width: 1500px; height: 1000px; overflow: hidden; font-family: 'Trebuchet MS', 'Segoe UI', Arial, sans-serif; }
+  .cover { position: relative; width: 1500px; height: 1000px; overflow: hidden;
+           background: radial-gradient(circle at 50% 40%, #23B3BF 0 25%, var(--teal) 55%, var(--teal-dark) 100%); }
   .paw { position: absolute; width: 90px; height: 90px; opacity: .15; }
   .bubble { position: absolute; border-radius: 50%; border: 4px solid rgba(255,255,255,.6); background: rgba(255,255,255,.15); }
 
-  .text { position: absolute; left: 130px; top: 128px; width: 900px; }
-  .pill { display: inline-block; background: var(--navy); color: var(--white); font-weight: 800; font-size: 26px;
-          letter-spacing: 3px; padding: 12px 28px; border-radius: 999px; }
-  h1 { color: var(--white); font-size: 98px; line-height: 1; font-weight: 900; letter-spacing: -2px; margin-top: 26px;
-       text-shadow: 0 5px 0 rgba(0,0,0,.15); }
+  .top { position: absolute; left: 0; right: 0; top: 70px; text-align: center; }
+  .pill { display: inline-block; background: var(--navy); color: var(--white); font-weight: 800; font-size: 30px;
+          letter-spacing: 3px; padding: 14px 34px; border-radius: 999px; }
+  h1 { color: var(--white); font-size: 116px; line-height: 1; font-weight: 900; letter-spacing: -2px; margin-top: 30px;
+       text-shadow: 0 6px 0 rgba(0,0,0,.15); }
   h1 span { color: var(--navy); text-shadow: none; }
-  .sub { color: var(--white); font-size: 38px; font-weight: 700; margin-top: 22px; }
+  .sub { color: var(--white); font-size: 46px; font-weight: 700; margin-top: 26px; }
   .sub b { color: var(--sun); }
-  .row { display: flex; align-items: center; gap: 26px; margin-top: 34px; }
-  .phone { background: var(--white); color: var(--navy); font-size: 44px; font-weight: 900; padding: 16px 40px;
-           border-radius: 999px; box-shadow: 0 7px 0 rgba(0,0,0,.18); }
-  .tags { color: var(--white); font-size: 28px; font-weight: 800; line-height: 1.35; }
 
-  .seal { position: absolute; left: 1100px; top: 175px; width: 440px; height: 440px; transform: rotate(-8deg); }
+  .right { position: absolute; right: 50px; top: 460px; text-align: right; }
+  .phone { display: inline-block; background: var(--white); color: var(--navy); font-size: 42px; font-weight: 900;
+           padding: 16px 32px; border-radius: 999px; box-shadow: 0 7px 0 rgba(0,0,0,.18); white-space: nowrap; }
+  .tags { color: var(--white); font-size: 36px; font-weight: 800; line-height: 1.35; margin-top: 30px; }
+
+  .seal { position: absolute; left: 50px; top: 420px; width: 380px; height: 380px; transform: rotate(-8deg); }
   .seal svg { position: absolute; inset: 0; filter: drop-shadow(0 12px 0 rgba(0,0,0,.15)); }
   .seal .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-              color: var(--navy); text-align: center; padding-bottom: 20px; }
-  .seal .num { font-size: 168px; font-weight: 900; line-height: .85; letter-spacing: -6px; }
-  .seal .yrs { font-size: 44px; font-weight: 900; letter-spacing: 4px; }
-  .seal .of { font-size: 22px; font-weight: 800; margin-top: 2px; }
+              color: var(--navy); text-align: center; padding-bottom: 16px; }
+  .seal .num { font-size: 146px; font-weight: 900; line-height: .85; letter-spacing: -5px; }
+  .seal .yrs { font-size: 38px; font-weight: 900; letter-spacing: 4px; }
+  .seal .of { font-size: 19px; font-weight: 800; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -47,25 +50,20 @@
       <ellipse cx="78" cy="42" rx="10" ry="13" fill="#fff"/>
     </symbol>
   </svg>
-  <svg class="paw" style="left:40px;top:60px;transform:rotate(-20deg)"><use href="#paw"/></svg>
-  <svg class="paw" style="left:1000px;top:90px;transform:rotate(15deg)"><use href="#paw"/></svg>
-  <svg class="paw" style="left:1540px;top:420px;transform:rotate(25deg)"><use href="#paw"/></svg>
-  <svg class="paw" style="left:1000px;top:640px;transform:rotate(-10deg)"><use href="#paw"/></svg>
-  <svg class="paw" style="left:1480px;top:70px;transform:rotate(-25deg)"><use href="#paw"/></svg>
-  <svg class="paw" style="left:560px;top:720px;transform:rotate(12deg)"><use href="#paw"/></svg>
-  <div class="bubble" style="left:1060px;top:300px;width:46px;height:46px"></div>
-  <div class="bubble" style="left:1560px;top:250px;width:30px;height:30px"></div>
-  <div class="bubble" style="left:1500px;top:650px;width:60px;height:60px"></div>
-  <div class="bubble" style="left:1120px;top:600px;width:26px;height:26px"></div>
+  <svg class="paw" style="left:40px;top:50px;transform:rotate(-20deg)"><use href="#paw"/></svg>
+  <svg class="paw" style="left:1370px;top:60px;transform:rotate(20deg)"><use href="#paw"/></svg>
+  <svg class="paw" style="left:560px;top:430px;transform:rotate(-12deg)"><use href="#paw"/></svg>
+  <svg class="paw" style="left:860px;top:420px;transform:rotate(15deg)"><use href="#paw"/></svg>
+  <svg class="paw" style="left:1200px;top:760px;transform:rotate(-10deg)"><use href="#paw"/></svg>
+  <div class="bubble" style="left:470px;top:380px;width:40px;height:40px"></div>
+  <div class="bubble" style="left:1010px;top:390px;width:30px;height:30px"></div>
+  <div class="bubble" style="left:140px;top:300px;width:50px;height:50px"></div>
+  <div class="bubble" style="left:1330px;top:300px;width:56px;height:56px"></div>
 
-  <div class="text">
+  <div class="top">
     <div class="pill">SCRUFFY TO FLUFFY PET GROOMING</div>
-    <h1>From Scruffy<br>to <span>Fluffy!</span> 🐾</h1>
+    <h1>From Scruffy to <span>Fluffy!</span> 🐾</h1>
     <p class="sub">Groomed with love by <b>Traci Westbrooks</b></p>
-    <div class="row">
-      <div class="phone">📞 (904) 402-9536</div>
-      <div class="tags">All Breeds • All Sizes<br>Callahan, Florida</div>
-    </div>
   </div>
 
   <div class="seal">
@@ -76,6 +74,11 @@
       <div class="yrs">YEARS</div>
       <div class="of">of happy pups</div>
     </div>
+  </div>
+
+  <div class="right">
+    <div class="phone">📞 (904) 402-9536</div>
+    <div class="tags">All Breeds • All Sizes<br>Callahan, Florida</div>
   </div>
 </div>
 </body>
