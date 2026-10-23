@@ -84,7 +84,7 @@ class SiteTests(unittest.TestCase):
         with open(r["path"]) as f:
             page = f.read()
         self.assertIn("Green &lt;Cuts&gt;", page)
-        self.assertIn('href="tel:9185550100"', page)
+        self.assertIn('href="tel:+19185550100"', page)
 
 
 class MissingKeyTests(unittest.TestCase):

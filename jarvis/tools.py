@@ -264,7 +264,7 @@ def followups_due() -> str:
 @beta_tool
 def build_business_website(name: str, city: str, services: list[dict], tagline: str, about: str,
                            phone: str = "", niche: str = "Landscaping", lead_id: int | None = None,
-                           color: str = "#2f6b3f") -> str:
+                           color: str = "#15803d", areas: list[str] | None = None) -> str:
     """Generate a one-page demo website for a local business, to show the owner when pitching.
 
     Args:
@@ -277,6 +277,7 @@ def build_business_website(name: str, city: str, services: list[dict], tagline: 
         niche: Business type, used in the page title.
         lead_id: Lead to attach the site to (fills rating/reviews and marks it site_built).
         color: Brand color as #RRGGBB.
+        areas: Towns/neighborhoods they serve, e.g. ["Yulee", "Fernandina Beach"].
     """
     rating = review_count = None
     if lead_id is not None:
@@ -284,7 +285,7 @@ def build_business_website(name: str, city: str, services: list[dict], tagline: 
             row = conn.execute("SELECT rating, review_count FROM leads WHERE id = ?", (lead_id,)).fetchone()
             if row:
                 rating, review_count = row["rating"], row["review_count"]
-    path = build_site(name, city, services, tagline, about, phone, niche, rating, review_count, color)
+    path = build_site(name, city, services, tagline, about, phone, niche, rating, review_count, color, areas)
     if lead_id is not None:
         with memory.connect() as conn:
             conn.execute(
