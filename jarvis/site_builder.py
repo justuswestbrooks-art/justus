@@ -22,8 +22,8 @@ ICONS = {
     "leaf": '<path d="M5 19c0-9 6-15 15-15 0 9-6 15-15 15Z"/><path d="M5 19 14 10"/>',
 }
 ICON_KEYWORDS = [
-    ("palm", "palm"), ("tree", "tree"), ("hedge", "trim"), ("shrub", "trim"), ("trim", "trim"),
-    ("edg", "trim"), ("mow", "mow"), ("lawn", "mow"), ("weed", "mow"), ("commercial", "building"),
+    ("palm", "palm"), ("tree", "tree"), ("mow", "mow"), ("hedge", "trim"), ("shrub", "trim"),
+    ("trim", "trim"), ("edg", "trim"), ("lawn", "mow"), ("weed", "mow"), ("commercial", "building"),
     ("hoa", "building"), ("clean", "clean"), ("debris", "clean"), ("junk", "truck"), ("haul", "truck"),
     ("trash", "truck"), ("irrigat", "water"), ("sprinkler", "water"), ("pressure", "water"),
     ("solar", "building"), ("tractor", "tractor"), ("skid", "tractor"), ("mulch", "flower"),
