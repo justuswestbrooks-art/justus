@@ -25,7 +25,7 @@ PAGE = """<!doctype html>
   header .wrap {{ display: flex; justify-content: space-between; align-items: center; height: 64px; }}
   .logo {{ font-weight: 800; font-size: 1.15rem; }}
   .btn {{ display: inline-block; background: var(--brand); color: #fff; text-decoration: none; font-weight: 600;
-          padding: 12px 22px; border-radius: 10px; min-height: 44px; }}
+          padding: 12px 22px; border-radius: 10px; min-height: 44px; white-space: nowrap; }}
   .btn.ghost {{ background: transparent; color: var(--brand); border: 2px solid var(--brand); }}
   .hero {{ padding: 72px 0 56px; background: linear-gradient(160deg, var(--brand) 0%, #13261c 100%); color: #fff; }}
   .hero h1 {{ font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.15; margin-bottom: 16px; }}
@@ -47,7 +47,7 @@ PAGE = """<!doctype html>
 <body>
 <header><div class="wrap">
   <span class="logo">{name}</span>
-  {phone_btn}
+  {phone_btn_short}
 </div></header>
 
 <div class="hero"><div class="wrap">
@@ -97,6 +97,7 @@ def build_site(
         color = "#2f6b3f"
     tel = re.sub(r"[^0-9+]", "", phone)
     phone_btn = f'<a class="btn" href="tel:{tel}">Call {e(phone)}</a>' if tel else ""
+    phone_btn_short = f'<a class="btn" href="tel:{tel}">Call now</a>' if tel else ""
     trust = ""
     if rating and review_count:
         trust = f'<p class="trust">&#9733; {rating:.1f} from {int(review_count)} Google reviews</p>'
@@ -113,6 +114,7 @@ def build_site(
         color=color,
         phone_btn=phone_btn,
         phone_btn_hero=phone_btn,
+        phone_btn_short=phone_btn_short,
         trust=trust,
         services=cards,
     )
