@@ -94,25 +94,36 @@ def save_deal(title: str, asking_price: float, est_resale: float, url: str = "",
 
 @beta_tool
 def update_deal(deal_id: int, status: str, bought_price: float | None = None,
-                sold_price: float | None = None, notes: str = "") -> str:
-    """Update a deal as it moves through the pipeline.
+                sold_price: float | None = None, hours: float = 0.0, notes: str = "") -> str:
+    """Update a deal as it moves through the pipeline. Marking it sold logs the profit automatically.
 
     Args:
         deal_id: ID from save_deal or list_deals.
         status: watching, messaged, bought, listed, sold, or passed.
         bought_price: What was actually paid.
         sold_price: What it actually sold for.
+        hours: Total hours spent on this flip (messaging, pickup, cleaning, listing). Ask if unknown.
         notes: Anything worth remembering (appended).
     """
     with memory.connect() as conn:
+        before = conn.execute("SELECT status FROM deals WHERE id = ?", (deal_id,)).fetchone()
+        if not before:
+            return _ok({"error": f"no deal {deal_id}"})
         conn.execute(
             "UPDATE deals SET status = ?, bought_price = COALESCE(?, bought_price), "
             "sold_price = COALESCE(?, sold_price), "
             "notes = TRIM(COALESCE(notes, '') || ' ' || ?), updated_at = ? WHERE id = ?",
             (status, bought_price, sold_price, notes, memory.now(), deal_id),
         )
-        row = conn.execute("SELECT * FROM deals WHERE id = ?", (deal_id,)).fetchone()
-    return _ok(dict(row) if row else {"error": f"no deal {deal_id}"})
+        row = dict(conn.execute("SELECT * FROM deals WHERE id = ?", (deal_id,)).fetchone())
+        if status == "sold" and before["status"] != "sold" and row["sold_price"] is not None:
+            profit = row["sold_price"] - (row["bought_price"] or 0)
+            conn.execute(
+                "INSERT INTO income (lane, amount, hours, note, created_at) VALUES ('flips', ?, ?, ?, ?)",
+                (profit, hours, f"deal {deal_id}: {row['title']}", memory.now()),
+            )
+            row["logged_profit"] = round(profit, 2)
+    return _ok(row)
 
 
 @beta_tool
@@ -191,7 +202,7 @@ def list_leads(status: str = "") -> str:
 
 @beta_tool
 def update_lead(lead_id: int, status: str, notes: str = "") -> str:
-    """Update a lead's status after outreach.
+    """Set a lead's status (use mark_contacted for outreach). Won or lost stops follow-ups.
 
     Args:
         lead_id: Lead ID.
@@ -200,11 +211,54 @@ def update_lead(lead_id: int, status: str, notes: str = "") -> str:
     """
     with memory.connect() as conn:
         conn.execute(
-            "UPDATE leads SET status = ?, notes = TRIM(COALESCE(notes, '') || ' ' || ?), updated_at = ? "
+            "UPDATE leads SET status = ?, notes = TRIM(COALESCE(notes, '') || ' ' || ?), updated_at = ?, "
+            "next_followup = CASE WHEN ? IN ('won', 'lost', 'replied') THEN NULL ELSE next_followup END "
             "WHERE id = ?",
-            (status, notes, memory.now(), lead_id),
+            (status, notes, memory.now(), status, lead_id),
         )
     return _ok({"lead_id": lead_id, "status": status})
+
+
+# Days after each touch to follow up. Most deals close on touch 2-4, not the first one.
+FOLLOWUP_DAYS = [2, 4, 7]
+
+
+@beta_tool
+def mark_contacted(lead_id: int, channel: str, notes: str = "") -> str:
+    """Record that the user reached out to a lead, and schedule the next follow-up.
+
+    Args:
+        lead_id: Lead ID.
+        channel: call, text, email, in_person, or facebook.
+        notes: What was said / their response.
+    """
+    with memory.connect() as conn:
+        row = conn.execute("SELECT touches FROM leads WHERE id = ?", (lead_id,)).fetchone()
+        if not row:
+            return _ok({"error": f"no lead {lead_id}"})
+        touches = (row["touches"] or 0) + 1
+        nxt = None
+        if touches <= len(FOLLOWUP_DAYS):
+            nxt = (datetime.now(timezone.utc) + timedelta(days=FOLLOWUP_DAYS[touches - 1])).isoformat(
+                timespec="seconds")
+        conn.execute(
+            "UPDATE leads SET status = 'contacted', touches = ?, last_contacted = ?, next_followup = ?, "
+            "notes = TRIM(COALESCE(notes, '') || ' ' || ?), updated_at = ? WHERE id = ?",
+            (touches, memory.now(), nxt, f"[touch {touches} via {channel}] {notes}", memory.now(), lead_id),
+        )
+    return _ok({"lead_id": lead_id, "touches": touches, "next_followup": nxt or "none: last touch, mark lost "
+                "if no reply"})
+
+
+@beta_tool
+def followups_due() -> str:
+    """List leads whose follow-up is due now. Work these before finding new leads."""
+    with memory.connect() as conn:
+        return _ok(memory.rows(conn.execute(
+            "SELECT id, name, phone, touches, last_contacted, next_followup, site_path, notes FROM leads "
+            "WHERE next_followup <= ? AND status IN ('contacted', 'site_built') ORDER BY next_followup",
+            (memory.now(),),
+        )))
 
 
 @beta_tool
@@ -341,6 +395,55 @@ def youtube_channel_report(channel_id: str = "", max_videos: int = 15) -> str:
     return _ok({"channel": item["snippet"]["title"], "stats": item["statistics"], "recent_videos": videos})
 
 
+# ---------------------------------------------------------------- money tracking
+
+@beta_tool
+def log_result(lane: str, profit: float = 0.0, hours: float = 0.0, recurring_monthly: float = 0.0,
+               note: str = "") -> str:
+    """Log money made and/or time spent in a lane. This is how Jarvis knows which lane pays best per hour.
+
+    Flip sales are logged automatically by update_deal; use this for everything else (a website sale,
+    Shopify profit for the week, hours spent filming, a monthly hosting client).
+
+    Args:
+        lane: flips, websites, shopify, or youtube.
+        profit: Profit in dollars (after costs). 0 if only logging time.
+        hours: Hours spent.
+        recurring_monthly: New monthly recurring revenue won (e.g. 49 for a hosting plan).
+        note: What it was for.
+    """
+    with memory.connect() as conn:
+        conn.execute(
+            "INSERT INTO income (lane, amount, hours, recurring_monthly, note, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (lane, profit, hours, recurring_monthly, note, memory.now()),
+        )
+    return _ok({"logged": True, "lanes_last_30_days": memory.lane_stats(30)})
+
+
+@beta_tool
+def money_report(days: int = 30) -> str:
+    """Profit, hours and dollars per hour by lane, plus progress toward the monthly goal.
+
+    Args:
+        days: Window to look at.
+    """
+    board = memory.scoreboard()
+    board["lanes"] = memory.lane_stats(days)
+    board["window_days"] = days
+    return _ok(board)
+
+
+@beta_tool
+def set_monthly_goal(amount: float) -> str:
+    """Set the user's monthly profit goal in dollars.
+
+    Args:
+        amount: Target monthly profit.
+    """
+    memory.set_setting("monthly_goal", str(amount))
+    return _ok({"monthly_goal": amount})
+
+
 # ---------------------------------------------------------------- learning loop
 
 @beta_tool
@@ -413,7 +516,9 @@ def record_lesson(area: str, lesson: str) -> str:
 
 ALL_TOOLS = [
     calc_flip, save_deal, update_deal, list_deals,
-    find_businesses_without_website, list_leads, update_lead, build_business_website,
+    find_businesses_without_website, list_leads, update_lead, mark_contacted, followups_due,
+    build_business_website,
     shopify_sales_report, youtube_channel_report,
+    log_result, money_report, set_monthly_goal,
     log_experiment, list_experiments, close_experiment, record_lesson,
 ]

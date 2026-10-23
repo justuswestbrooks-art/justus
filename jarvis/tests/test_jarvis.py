@@ -30,10 +30,42 @@ class FlipTests(unittest.TestCase):
         check = call(tools.calc_flip, buy_price=offer, sell_price=300, platform="ebay", extra_costs=10)
         self.assertAlmostEqual(check["roi_pct"], 50.0, delta=0.2)
 
-    def test_deal_lifecycle_feeds_scoreboard(self):
+    def test_selling_a_deal_logs_profit_once(self):
         deal = call(tools.save_deal, title="Mower", asking_price=80, est_resale=200)["deal_id"]
-        call(tools.update_deal, deal_id=deal, status="sold", bought_price=70, sold_price=190)
-        self.assertGreaterEqual(memory.scoreboard()["flip_profit"], 120)
+        call(tools.update_deal, deal_id=deal, status="bought", bought_price=70)
+        r = call(tools.update_deal, deal_id=deal, status="sold", sold_price=190, hours=3)
+        self.assertEqual(r["logged_profit"], 120)
+        call(tools.update_deal, deal_id=deal, status="sold", notes="buyer happy")  # no double count
+        flips = [l for l in memory.lane_stats(30) if l["lane"] == "flips"][0]
+        self.assertEqual(flips["profit"], 120)
+        self.assertEqual(flips["per_hour"], 40)
+
+
+class MoneyTests(unittest.TestCase):
+    def test_lanes_ranked_by_dollars_per_hour(self):
+        call(tools.log_result, lane="websites", profit=499, hours=5, recurring_monthly=49)
+        call(tools.log_result, lane="youtube", profit=0, hours=4)
+        call(tools.set_monthly_goal, amount=2000)
+        board = call(tools.money_report)
+        self.assertEqual(board["lanes"][0]["lane"], "websites")
+        self.assertEqual(board["monthly_goal"], 2000)
+        self.assertGreaterEqual(board["recurring_monthly_revenue"], 49)
+
+
+class FollowupTests(unittest.TestCase):
+    def test_cadence_then_stop(self):
+        with memory.connect() as conn:
+            lead = conn.execute("INSERT INTO leads (place_id, name) VALUES ('p1', 'Acme Lawn')").lastrowid
+        days = []
+        for _ in range(4):
+            days.append(call(tools.mark_contacted, lead_id=lead, channel="text")["next_followup"])
+        self.assertTrue(all(d.startswith("20") for d in days[:3]))
+        self.assertIn("last touch", days[3])
+        with memory.connect() as conn:  # make it due now
+            conn.execute("UPDATE leads SET next_followup = '2000-01-01T00:00:00+00:00' WHERE id = ?", (lead,))
+        self.assertEqual([l["id"] for l in call(tools.followups_due)], [lead])
+        call(tools.update_lead, lead_id=lead, status="won")
+        self.assertEqual(call(tools.followups_due), [])
 
 
 class LearningTests(unittest.TestCase):
