@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nightshift FOMO Check</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Running tally on top, the check form, the verdict with a cooldown, then the log of past impulses. Single dark look by choice, matching the Nightshift dashboard. */
+:root {
+  color-scheme: dark;
+  --ink: #04070d; --panel: #0a1220; --card: #111b2c; --card-2: #16233a; --line: #1f3150;
+  --edge: #2d7dff; --fg: #e8eef8; --muted: #8392ab;
+  --gain: #31e07a; --gain-bg: #0f3a25; --loss: #ff4d5e; --loss-bg: #3a1219; --warn: #ffb547; --warn-bg: #3a2a10;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, #0d1a33 0%, var(--ink) 60%) fixed, var(--ink);
+  color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.app {
+  max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;
+  background: linear-gradient(180deg, #0b1526 0%, var(--panel) 40%);
+  border: 1px solid #1d3a6b; border-radius: 26px; padding: 20px 18px 22px;
+  box-shadow: 0 0 0 1px rgba(45,125,255,.15), 0 0 40px rgba(45,125,255,.18);
+}
+.brand { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(26px, 7.5vw, 34px); line-height: 1.1; margin: 6px 0 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 0; }
+.lede { color: var(--muted); margin: 8px 0 0; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.stat b { display: block; font: 600 18px var(--mono); }
+.stat span { font-size: 12px; color: var(--muted); }
+.stat .g { color: var(--gain); } .stat .r { color: var(--loss); }
+
+form { display: flex; flex-direction: column; gap: 14px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > span, legend { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+input[type=text], input[type=number], select {
+  width: 100%; background: var(--card); border: 1px solid var(--line); color: var(--fg);
+  border-radius: 11px; padding: 10px 12px; font: 600 15px var(--body);
+}
+input[type=number] { font-family: var(--mono); }
+fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.q { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.q p { margin: 0; font-weight: 600; font-size: 14px; }
+.yn { display: flex; flex: none; background: var(--ink); border-radius: 999px; padding: 3px; }
+.yn button { border: 0; background: none; color: var(--muted); font: 700 13px var(--body); padding: 6px 13px; border-radius: 999px; cursor: pointer; }
+.yn button[aria-pressed="true"] { background: var(--card-2); color: var(--fg); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--edge); outline-offset: 2px; }
+.btn { border: 1px solid var(--line); background: var(--card-2); color: var(--fg); border-radius: 12px; padding: 11px 14px; font: 700 14px var(--body); cursor: pointer; }
+.btn.primary { background: #1f5eff; border-color: #1f5eff; }
+.btn.sm { padding: 7px 11px; font-size: 13px; border-radius: 10px; }
+.err { color: var(--loss); font-size: 13px; margin: 0; }
+
+.verdict { border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px; border: 1px solid; }
+.verdict.g { background: var(--gain-bg); border-color: #1d6b42; }
+.verdict.a { background: var(--warn-bg); border-color: #7a5a1c; }
+.verdict.r { background: var(--loss-bg); border-color: #7a2230; }
+.verdict .tag { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.verdict.g .tag { color: var(--gain); } .verdict.a .tag { color: var(--warn); } .verdict.r .tag { color: var(--loss); }
+.verdict h3 { margin: 0; font-family: var(--display); font-size: 20px; }
+.verdict ul { margin: 0; padding-left: 18px; color: #cdd6e6; font-size: 14px; }
+.meter { height: 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 99px; }
+
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.item { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.item-h { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.item-h b { font-size: 15px; }
+.item-h time { color: var(--muted); font-size: 12px; }
+.pill { font: 600 11px var(--mono); padding: 3px 8px; border-radius: 999px; letter-spacing: .04em; white-space: nowrap; }
+.pill.wait { background: var(--warn-bg); color: var(--warn); }
+.pill.ready { background: #13284a; color: #8ab4ff; }
+.pill.skip { background: var(--gain-bg); color: var(--gain); }
+.pill.buy { background: #2a2140; color: #c3a6ff; }
+.pill.ex { background: #2a3550; color: #c9d5ea; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: 13px; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.acts input { width: 110px; padding: 7px 10px; font-size: 14px; }
+.out { font-size: 13px; font-weight: 700; }
+.out.g { color: var(--gain); } .out.r { color: var(--loss); } .out.m { color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; background: var(--card); border: 1px dashed var(--line); border-radius: 14px; padding: 14px; margin: 0; }
+.sec-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.foot { color: var(--muted); font-size: 12px; margin: 0; }
+@media (max-width: 400px) { .row { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr 1fr; } .stat b { font-size: 15px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<main class="app">
+  <header>
+    <div class="brand">Nightshift · FOMO check</div>
+    <h1>Saw something pumping? Check before you buy.</h1>
+    <p class="lede">Answer seven questions. You get a verdict and a cooldown. Come back when the timer ends and decide with a clear head.</p>
+  </header>
+
+  <section class="stats" aria-label="Your tally">
+    <div class="stat"><b id="sChecked">0</b><span>impulses checked</span></div>
+    <div class="stat"><b id="sKept" class="g">$0</b><span>not spent</span></div>
+    <div class="stat"><b id="sDodged">$0</b><span>skips vs. price</span></div>
+  </section>
+
+  <form id="form" novalidate>
+    <h2>What's tempting you?</h2>
+    <div class="row">
+      <label class="field"><span>Coin or stock</span><input id="name" type="text" placeholder="e.g. PONS" autocomplete="off" maxlength="24"></label>
+      <label class="field"><span>Amount ($)</span><input id="amt" type="number" min="1" step="1" placeholder="200" inputmode="decimal"></label>
+    </div>
+    <div class="row">
+      <label class="field"><span>Where you saw it</span>
+        <select id="src">
+          <option value="2">Post on X, TikTok or YouTube</option>
+          <option value="2">Discord or Telegram group</option>
+          <option value="1">A friend told me</option>
+          <option value="0">My own research</option>
+        </select></label>
+      <label class="field"><span>Already up today</span>
+        <select id="up">
+          <option value="0">Under 10%</option>
+          <option value="1">10–50%</option>
+          <option value="2">50–100%</option>
+          <option value="3">Over 100%</option>
+          <option value="2">I don't know</option>
+        </select></label>
+    </div>
+    <fieldset id="qs">
+      <legend>Be honest</legend>
+    </fieldset>
+    <p class="err" id="err" hidden></p>
+    <button class="btn primary" type="submit">Check it</button>
+  </form>
+
+  <section id="verdict" class="verdict" hidden aria-live="polite"></section>
+
+  <section>
+    <div class="sec-h"><h2>Your impulse log</h2><button class="btn sm" id="clearEx" type="button" hidden>Clear examples</button></div>
+    <ul class="log" id="log" style="margin-top:12px"></ul>
+  </section>
+
+  <p class="foot">Your log is saved in this browser only. Nothing here is financial advice and nothing is sent anywhere.</p>
+</main>
+
+<script>
+(() => {
+  // Each question: text, which answer is risky, how many points it adds
+  const QS = [
+    { id: "afford", t: "Could you lose all of it and be fine?", risky: "no", pts: 4, why: "You can't afford to lose this money." },
+    { id: "why", t: "Do you know why it's going up?", risky: "no", pts: 2, why: "You don't know what's driving the price." },
+    { id: "exit", t: "Do you have a sell price and a stop-loss?", risky: "no", pts: 2, why: "No exit plan, so you'll be guessing later." },
+    { id: "quiet", t: "Would you buy it if nobody was posting about it?", risky: "no", pts: 2, why: "The hype is the reason, not the asset." },
+    { id: "chase", t: "Are you trying to win back a loss?", risky: "yes", pts: 3, why: "Chasing losses leads to bigger bets." },
+  ];
+  const HOUR = 3600e3;
+  const money = n => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const KEY = "nightshift-fomo-v1";
+
+  const now = Date.now();
+  const EXAMPLES = [
+    { id: "ex1", ex: true, name: "PONS", amt: 300, at: now - 3 * 86400e3, until: now - 2 * 86400e3, level: "r", state: "skip", pct: -41 },
+    { id: "ex2", ex: true, name: "CATE", amt: 150, at: now - 6 * 86400e3, until: now - 6 * 86400e3 + HOUR, level: "a", state: "buy", pct: -27 },
+    { id: "ex3", ex: true, name: "STONK", amt: 100, at: now - 9 * 86400e3, until: now - 9 * 86400e3 + HOUR, level: "a", state: "skip", pct: 18 },
+  ];
+
+  let log;
+  try { log = JSON.parse(localStorage.getItem(KEY)); } catch (e) { log = null; }
+  if (!Array.isArray(log)) log = EXAMPLES.slice();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(log)); } catch (e) {} };
+
+  const answers = {};
+  $("qs").insertAdjacentHTML("beforeend", QS.map(q => `
+    <div class="q"><p id="l-${q.id}">${q.t}</p>
+      <div class="yn" role="group" aria-labelledby="l-${q.id}">
+        <button type="button" data-q="${q.id}" data-v="yes" aria-pressed="false">Yes</button>
+        <button type="button" data-q="${q.id}" data-v="no" aria-pressed="false">No</button>
+      </div></div>`).join(""));
+  $("qs").addEventListener("click", e => {
+    const b = e.target.closest("button[data-q]"); if (!b) return;
+    answers[b.dataset.q] = b.dataset.v;
+    b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  });
+
+  let pending = null;
+  $("form").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("name").value.trim().toUpperCase(), amt = parseFloat($("amt").value);
+    const missing = QS.filter(q => !answers[q.id]).length;
+    const err = !name ? "Enter what you want to buy." : !(amt > 0) ? "Enter how much you'd spend." : missing ? `Answer all the questions (${missing} left).` : "";
+    $("err").hidden = !err; $("err").textContent = err;
+    if (err) return;
+
+    const reasons = [];
+    let score = +$("src").value + +$("up").value;
+    if (+$("src").value === 2) reasons.push("You found it through a hype post or group.");
+    if (+$("up").value >= 2) reasons.push("It's already run up a lot, so you'd be buying late.");
+    QS.forEach(q => { if (answers[q.id] === q.risky) { score += q.pts; reasons.push(q.why); } });
+    const hardRed = answers.afford === "no" || answers.chase === "yes";
+    const level = hardRed || score >= 9 ? "r" : score >= 4 ? "a" : "g";
+    const wait = { g: 0.25, a: 1, r: 24 }[level];
+    const V = {
+      g: ["Low FOMO", "Looks considered", "Wait 15 minutes, then follow your own plan."],
+      a: ["Medium FOMO", "Cool off for an hour", "If it still makes sense in an hour, it'll make sense without the rush."],
+      r: ["High FOMO", "Sleep on it: 24 hours", "This is the setup where people lose money. Let the moment pass."],
+    }[level];
+    const pct = Math.min(100, (score / 17) * 100);
+    pending = { id: "e" + Date.now(), name, amt, at: Date.now(), until: Date.now() + wait * HOUR, level, state: "wait", pct: null };
+    const v = $("verdict");
+    v.className = "verdict " + level; v.hidden = false;
+    v.innerHTML = `<span class="tag">${V[0]} · score ${score}/17</span>
+      <div class="meter"><i style="width:${pct}%;background:var(${level === "g" ? "--gain" : level === "a" ? "--warn" : "--loss"})"></i></div>
+      <h3>${V[1]}</h3><p style="margin:0">${V[2]}</p>
+      ${reasons.length ? `<ul>${reasons.map(r => `<li>${r}</li>`).join("")}</ul>` : ""}
+      <div class="acts"><button class="btn primary" type="button" id="startCool">Start ${wait < 1 ? "15-minute" : wait + "-hour"} cooldown</button>
+      <button class="btn" type="button" id="dismiss">Never mind, I'm not buying</button></div>`;
+    $("startCool").onclick = () => { log.unshift(pending); finish(); };
+    $("dismiss").onclick = () => { pending.state = "skip"; pending.until = Date.now(); log.unshift(pending); finish(); };
+    v.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+
+  function finish() {
+    pending = null; save(); render();
+    $("verdict").hidden = true; $("form").reset();
+    Object.keys(answers).forEach(k => delete answers[k]);
+    document.querySelectorAll(".yn button").forEach(b => b.setAttribute("aria-pressed", "false"));
+  }
+
+  const left = ms => { const h = Math.floor(ms / HOUR), m = Math.floor(ms / 60e3) % 60, s = Math.floor(ms / 1e3) % 60; return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m ${String(s).padStart(2, "0")}s`; };
+  const date = t => new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  function render() {
+    const t = Date.now();
+    const skips = log.filter(x => x.state === "skip");
+    const vsPrice = skips.filter(x => x.pct != null).reduce((s, x) => s - x.amt * x.pct / 100, 0);
+    $("sChecked").textContent = log.length;
+    $("sKept").textContent = money(skips.reduce((s, x) => s + x.amt, 0));
+    $("sDodged").textContent = (vsPrice >= 0 ? "+" : "") + money(vsPrice);
+    $("sDodged").className = vsPrice >= 0 ? "g" : "r";
+    $("clearEx").hidden = !log.some(x => x.ex);
+    if (!log.length) { $("log").innerHTML = `<li class="empty">Nothing logged yet. Next time a post makes you want to buy, run it through the check above.</li>`; return; }
+    $("log").innerHTML = log.map(x => {
+      let pill, body = "";
+      if (x.state === "wait" && t < x.until) {
+        pill = `<span class="pill wait num">cooling · ${left(x.until - t)}</span>`;
+        body = `<div class="acts"><button class="btn sm" data-a="skip" data-id="${x.id}">Skip it now</button></div>`;
+      } else if (x.state === "wait") {
+        pill = `<span class="pill ready num">cooldown done</span>`;
+        body = `<div class="acts"><span class="out m">Still want it?</span><button class="btn sm" data-a="buy" data-id="${x.id}">I bought it</button><button class="btn sm" data-a="skip" data-id="${x.id}">I skipped it</button></div>`;
+      } else {
+        pill = `<span class="pill ${x.state} num">${x.state === "skip" ? "skipped" : "bought"}</span>`;
+        if (x.pct == null) {
+          body = `<div class="acts"><label class="out m" for="p-${x.id}">Price change since:</label><input id="p-${x.id}" class="num" type="number" step="1" placeholder="−30 %"><button class="btn sm" data-a="pct" data-id="${x.id}">Save</button></div>`;
+        } else {
+          const d = x.amt * x.pct / 100;
+          const txt = x.state === "skip"
+            ? (d < 0 ? `Price ${x.pct}% · skipping saved you ${money(-d)}` : `Price +${x.pct}% · you missed ${money(d)}. Fine, there's always another one.`)
+            : (d < 0 ? `Price ${x.pct}% · you lost ${money(-d)}` : `Price +${x.pct}% · you made ${money(d)}`);
+          const good = x.state === "skip" ? d <= 0 : d >= 0;
+          body = `<p class="out ${good ? "g" : "r"}" style="margin:0">${txt}</p>`;
+        }
+      }
+      return `<li class="item"><div class="item-h"><b>${esc(x.name)} <span class="num" style="color:var(--muted);font-weight:500">${money(x.amt)}</span></b>${x.ex ? `<span class="pill ex">example</span>` : ""}${pill}</div>
+        <div class="meta"><time>${date(x.at)}</time><span>${{ g: "Low", a: "Medium", r: "High" }[x.level]} FOMO</span></div>${body}</li>`;
+    }).join("");
+  }
+
+  $("log").addEventListener("click", e => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const x = log.find(i => i.id === b.dataset.id); if (!x) return;
+    if (b.dataset.a === "pct") { const v = parseFloat($("p-" + x.id).value); if (isNaN(v)) return; x.pct = Math.round(v); }
+    else { x.state = b.dataset.a; x.until = Math.min(x.until, Date.now()); }
+    save(); render();
+  });
+  $("clearEx").addEventListener("click", () => { log = log.filter(x => !x.ex); save(); render(); });
+
+  render();
+  setInterval(() => { if (log.some(x => x.state === "wait")) render(); }, 1000);
+})();
+</script>
+</body>
+</html>
