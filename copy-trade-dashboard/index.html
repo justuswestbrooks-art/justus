@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nightshift Copy Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width app frame, glowing edge, summary (balance + chart) above the copy grid, agent pipeline and activity log. Single dark look by choice. */
+:root {
+  color-scheme: dark;
+  --ink: #04070d;          /* page */
+  --panel: #0a1220;        /* app frame */
+  --card: #111b2c;         /* cards */
+  --card-2: #16233a;
+  --line: #1f3150;
+  --edge: #2d7dff;         /* frame glow */
+  --fg: #e8eef8;
+  --muted: #7f8ea8;
+  --gain: #31e07a;
+  --gain-bg: #0f3a25;
+  --loss: #ff4d5e;
+  --loss-bg: #3a1219;
+  --warn: #ffb547;
+  --violet: #a77bff;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, #0d1a33 0%, var(--ink) 60%) fixed, var(--ink);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  min-height: 100%;
+}
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.app {
+  max-width: 480px; margin: 0 auto;
+  background: linear-gradient(180deg, #0b1526 0%, var(--panel) 40%);
+  border: 1px solid #1d3a6b;
+  border-radius: 26px;
+  box-shadow: 0 0 0 1px rgba(45,125,255,.15), 0 0 40px rgba(45,125,255,.18), inset 0 1px 0 rgba(255,255,255,.04);
+  padding: 20px 18px 22px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.brand { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--gain); box-shadow: 0 0 10px var(--gain); }
+.brand.off i { background: var(--muted); box-shadow: none; }
+.clock { font-size: 13px; color: var(--muted); }
+.balance { font-family: var(--display); font-weight: 800; font-size: clamp(38px, 11vw, 52px); letter-spacing: -.02em; line-height: 1; }
+.balance small { font-size: .5em; color: var(--muted); font-weight: 600; }
+.delta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-weight: 700; font-size: 15px; }
+.delta .up { color: var(--gain); } .delta .down { color: var(--loss); }
+.delta .since { color: var(--muted); font-weight: 600; }
+.sim { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .08em; background: #2a3550; color: #c9d5ea; padding: 2px 7px; border-radius: 5px; }
+
+.chart { position: relative; height: 190px; }
+.chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tag {
+  position: absolute; transform: translate(-50%, -150%);
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  background: #0d1626; border: 1px solid #2c4366; border-radius: 999px;
+  padding: 3px 9px 3px 4px; font-size: 12px; font-weight: 800;
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+}
+.tf { display: flex; justify-content: space-between; gap: 4px; }
+.tf button {
+  font: 700 13px var(--body); color: var(--muted); background: none; border: 0;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+.tf button[aria-pressed="true"] { background: var(--card-2); color: var(--fg); }
+.tf button:focus-visible, .ctrl button:focus-visible, .ctrl input:focus-visible { outline: 2px solid var(--edge); outline-offset: 2px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gain); }
+
+.sec-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sec-h h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0; }
+.sec-h span { color: var(--muted); font-size: 13px; font-weight: 600; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tr {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  transition: border-color .3s, box-shadow .3s;
+}
+.tr.fired { border-color: #7a2230; box-shadow: inset 0 0 0 1px rgba(255,77,94,.25); background: linear-gradient(180deg, #1a1220, var(--card)); }
+.tr.flash { box-shadow: 0 0 0 1px var(--gain), 0 0 18px rgba(49,224,122,.25); }
+.tr-head { display: flex; gap: 9px; align-items: center; min-width: 0; }
+.av { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; }
+.who { min-width: 0; flex: 1; }
+.who b { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who em { font-style: normal; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.who em .s { color: var(--warn); font-weight: 700; }
+.who em .b { color: #5aa8ff; font-weight: 700; }
+.who em .x { color: var(--loss); font-weight: 700; }
+.lag { flex: none; font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px; }
+.tr-foot {
+  display: flex; align-items: center; gap: 8px; border-radius: 11px; padding: 7px 9px; min-height: 36px;
+  background: #0c1422; font-size: 12px; color: var(--muted); min-width: 0;
+}
+.tr-foot.g { background: var(--gain-bg); }
+.tr-foot.r { background: var(--loss-bg); }
+.tr-foot .amt { font-weight: 700; font-size: 14px; }
+.tr-foot.g .amt { color: var(--gain); } .tr-foot.r .amt { color: var(--loss); }
+.tr-foot .note { margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 800 9px var(--body); color: #0b0f17; }
+
+.pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ag { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px; min-width: 0; }
+.ag b { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.ag b i { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.ag span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag.risk { border-color: #7a2230; }
+
+.feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.feed li { display: grid; grid-template-columns: 62px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.feed li:first-child { border-top: 0; }
+.feed time { color: var(--muted); font-size: 12px; }
+.feed .t { min-width: 0; }
+.feed .v { font-weight: 700; }
+.feed .v.g { color: var(--gain); } .feed .v.r { color: var(--loss); } .feed .v.m { color: var(--muted); }
+
+.ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 4px; border-top: 1px solid var(--line); padding-top: 14px; }
+.ctrl label { font-size: 12px; color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.ctrl input { width: 92px; background: var(--card); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 8px 10px; font: 600 14px var(--mono); }
+.ctrl button { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font: 700 13px var(--body); cursor: pointer; }
+.ctrl button.primary { background: #1f5eff; border-color: #1f5eff; }
+.ctrl .sp { margin-left: auto; }
+.disclaim { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
+
+@media (max-width: 480px) {
+  .pipe { grid-template-columns: 1fr 1fr; }
+  .lag { display: none; }
+  .av { width: 30px; height: 30px; font-size: 12px; }
+}
+@media (max-width: 340px) { .grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<main class="app" aria-label="Nightshift copy trading desk">
+  <div class="top">
+    <div class="brand" id="brand"><i></i>Nightshift · Copy desk</div>
+    <div class="clock num" id="clock">11:35 PM</div>
+  </div>
+
+  <section aria-label="Balance">
+    <div class="balance num" id="bal">$163<small>.85</small></div>
+    <div class="delta">
+      <span class="num up" id="delta">▲ $0.00 (+0%)</span>
+      <span class="since">since deposit</span>
+      <span class="sim" title="Paper trading. Outcomes are randomized.">SIM</span>
+    </div>
+  </section>
+
+  <div class="chart" id="chart"><svg id="svg" viewBox="0 0 360 190" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+
+  <div class="tf" role="group" aria-label="Chart range">
+    <button data-w="30" aria-pressed="false"><span class="dot"></span>LIVE</button>
+    <button data-w="60" aria-pressed="false">1H</button>
+    <button data-w="240" aria-pressed="false">4H</button>
+    <button data-w="0" aria-pressed="true">ALL</button>
+  </div>
+
+  <section>
+    <div class="sec-h"><h2>Copy grid</h2><span id="gridMeta">4 traders · 30s → Bot</span></div>
+    <div class="grid" id="grid" style="margin-top:12px"></div>
+  </section>
+
+  <section class="pipe" aria-label="Agent pipeline">
+    <div class="ag"><b><i style="background:#3fb6ff"></i>Watcher</b><span id="agW">watching 4</span></div>
+    <div class="ag"><b><i style="background:var(--warn)"></i>Copier</b><span>30s behind</span></div>
+    <div class="ag"><b><i style="background:var(--violet)"></i>Executor</b><span id="agE">0 fills</span></div>
+    <div class="ag risk"><b><i style="background:var(--loss)"></i>Risk</b><span id="agR">stop 7:00 AM</span></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><h2>Activity</h2><span id="feedMeta">0 copies tonight</span></div>
+    <ul class="feed" id="feed" style="margin-top:8px"></ul>
+  </section>
+
+  <div class="ctrl">
+    <label for="dep">Deposit $<input id="dep" class="num" type="number" min="1" step="0.01" value="163.85"></label>
+    <button class="primary" id="run">Restart night</button>
+    <button id="pause">Pause</button>
+    <button id="speed" class="sp">Speed 1×</button>
+  </div>
+  <p class="disclaim">Simulated paper trading with randomized outcomes. Traders and tokens are fictional. Real copy-trading adds slippage and fees, and losses can be total.</p>
+</main>
+
+<script>
+(() => {
+  const TRADERS = [
+    { h: "velvetquant", c: ["#6d5dfc", "#22d3ee"] },
+    { h: "driftwood", c: ["#f97316", "#ef4444"] },
+    { h: "mossbit", c: ["#10b981", "#0ea5e9"] },
+    { h: "lowtide", c: ["#eab308", "#ec4899"] },
+  ];
+  const TOKENS = { MOTH: "#f5c84b", GLOAM: "#8ab4ff", RIVET: "#c4c9d4", SNOOZ: "#b18cff", KITE: "#4ee6a8", ORBO: "#ff8fa3", BRRR: "#7de3ff", PIPPA: "#ffb36b" };
+  const TK = Object.keys(TOKENS);
+  const START = 23 * 60 + 35, END = 31 * 60, STEP = 3;
+  const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+  const $ = id => document.getElementById(id);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const clockStr = m => { m = ((m % 1440) + 1440) % 1440; let h = Math.floor(m / 60), mm = m % 60; const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return `${h}:${String(mm).padStart(2, "0")} ${ap}`; };
+  const tokIcon = t => `<span class="tk" style="background:${TOKENS[t]}">${t[0]}</span>`;
+
+  let S, timer = null, paused = false, speed = 1, win = 0;
+
+  function init() {
+    const dep = Math.max(1, parseFloat($("dep").value) || 163.85);
+    S = {
+      t: START, dep, bal: dep, pts: [{ t: START, v: dep }], fills: 0, done: false, events: [],
+      tr: TRADERS.map(x => ({ ...x, status: "watching", last: null, pnl: 0 })),
+    };
+    log("Deposited " + money.format(dep) + " · copying 4 traders", null);
+    render();
+  }
+
+  function log(text, amt) { S.events.unshift({ t: S.t, text, amt }); S.events.length = Math.min(S.events.length, 8); }
+
+  function tick() {
+    if (S.done) return;
+    S.t += STEP;
+    const active = S.tr.filter(x => x.status !== "fired");
+    if (Math.random() < 0.45 && active.length) {
+      const tr = pick(active), tok = pick(TK), r = Math.random();
+      let pct = r < 0.08 ? rnd(0.8, 2.4) : r < 0.3 ? -rnd(0.05, 0.35) : rnd(0.02, 0.25);
+      const pnl = S.bal * 0.35 * pct;
+      S.bal = Math.max(0.01, S.bal + pnl); S.fills++;
+      tr.status = "live"; tr.pnl += pnl; tr.last = { tok, pct, pnl, side: "sold" };
+      tr.flash = pnl > 0;
+      S.pts.push({ t: S.t, v: S.bal, pnl, tok, tr: tr.h });
+      log(`Copied ${tr.h} · sold ${tok}`, pnl);
+      if (pct <= -0.2 && active.length > 2) {
+        tr.status = "fired"; tr.last = { tok, pct, pnl, side: "bought" };
+        log(`Risk fired ${tr.h} · ${Math.round(pct * 100)}% on ${tok}`, null);
+      }
+    } else {
+      S.pts.push({ t: S.t, v: S.bal });
+    }
+    if (S.t >= END) {
+      S.done = true;
+      log("7:00 AM · profits locked, copying stopped", null);
+    }
+    render();
+  }
+
+  function renderChart() {
+    const svg = $("svg"), box = $("chart");
+    const pts = win ? S.pts.filter(p => p.t >= S.t - win) : S.pts;
+    box.querySelectorAll(".tag").forEach(n => n.remove());
+    if (pts.length < 2) { svg.innerHTML = ""; return; }
+    const W = 360, H = 190, padT = 46, padB = 10;
+    const t0 = pts[0].t, t1 = Math.max(pts[pts.length - 1].t, t0 + 1);
+    let lo = Math.min(...pts.map(p => p.v)), hi = Math.max(...pts.map(p => p.v));
+    if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
+    const x = t => ((t - t0) / (t1 - t0)) * W;
+    const y = v => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+    const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+    const area = `${line}L${W},${H}L0,${H}Z`;
+    let marks = "";
+    pts.forEach(p => { if (p.pnl != null) marks += `<circle cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.2" fill="${p.pnl >= 0 ? "#31e07a" : "#ff4d5e"}" vector-effect="non-scaling-stroke"/>`; });
+    const last = pts[pts.length - 1];
+    svg.innerHTML = `
+      <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#31e07a" stop-opacity=".28"/><stop offset="1" stop-color="#31e07a" stop-opacity="0"/></linearGradient></defs>
+      ${[0.25, 0.5, 0.75].map(f => `<line x1="0" x2="${W}" y1="${padT + f * (H - padT - padB)}" y2="${padT + f * (H - padT - padB)}" stroke="#1a2a44" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>`).join("")}
+      <path d="${area}" fill="url(#ga)"/>
+      <path d="${line}" fill="none" stroke="#31e07a" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="filter:drop-shadow(0 0 6px rgba(49,224,122,.6))"/>
+      ${marks}
+      <circle cx="${x(last.t)}" cy="${y(last.v)}" r="5" fill="#31e07a" stroke="#04070d" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    // Callouts for the biggest wins in view, spaced so they do not collide
+    const wins = pts.filter(p => p.pnl > 0).sort((a, b) => b.pnl - a.pnl).slice(0, 6);
+    const placed = [];
+    for (const p of wins) {
+      if (placed.length >= 4) break;
+      const lx = (x(p.t) / W) * 100, ly = (y(p.v) / H) * 100;
+      if (placed.some(q => Math.abs(q.lx - lx) < 36 && Math.abs(q.ly - ly) < 22)) continue;
+      placed.push({ lx, ly });
+      const el = document.createElement("div");
+      el.className = "tag num";
+      el.style.left = Math.min(84, Math.max(16, lx)) + "%";
+      el.style.top = Math.max(22, ly) + "%";
+      el.innerHTML = `${tokIcon(p.tok)}${p.tok} +${money.format(p.pnl).replace(".00", "")}`;
+      box.appendChild(el);
+    }
+  }
+
+  function renderGrid() {
+    $("grid").innerHTML = S.tr.map(tr => {
+      const init = tr.h.slice(0, 2).toUpperCase();
+      let action = `<em>no trades yet</em>`, foot = `<div class="tr-foot"><span>•</span><span>watching</span></div>`;
+      if (tr.last && tr.status === "fired") {
+        action = `<em><span class="b">bought</span> ${tr.last.tok} · <span class="x">skipped</span></em>`;
+        foot = `<div class="tr-foot r">${tokIcon(tr.last.tok)}<span class="amt num">${Math.round(tr.last.pct * 100)}%</span><span class="note">${tr.last.tok} after their buy</span></div>`;
+      } else if (tr.last) {
+        const g = tr.last.pnl >= 0;
+        action = `<em><span class="s">sold</span> ${tr.last.tok}</em>`;
+        foot = `<div class="tr-foot ${g ? "g" : "r"}">${tokIcon(tr.last.tok)}<span class="amt num">${g ? "+" : "−"}${money.format(Math.abs(tr.last.pnl))}</span><span class="note">${S.done ? "locked 7:00" : "live"}</span></div>`;
+      }
+      return `<article class="tr ${tr.status === "fired" ? "fired" : ""} ${tr.flash ? "flash" : ""}">
+        <div class="tr-head"><span class="av" style="background:linear-gradient(135deg,${tr.c[0]},${tr.c[1]})">${init}</span>
+          <div class="who"><b>${tr.h}</b>${action}</div><span class="lag num">30s</span></div>${foot}</article>`;
+    }).join("");
+    S.tr.forEach(t => (t.flash = false));
+  }
+
+  function render() {
+    const [d, c] = S.bal.toFixed(2).split(".");
+    $("bal").innerHTML = `$${Number(d).toLocaleString("en-US")}<small>.${c}</small>`;
+    const diff = S.bal - S.dep, pct = (diff / S.dep) * 100;
+    const up = diff >= 0;
+    $("delta").className = "num " + (up ? "up" : "down");
+    $("delta").textContent = `${up ? "▲" : "▼"} ${money.format(Math.abs(diff))} (${up ? "+" : "−"}${Math.abs(pct).toLocaleString("en-US", { maximumFractionDigits: 0 })}%)`;
+    $("clock").textContent = clockStr(S.t);
+    $("brand").classList.toggle("off", S.done || paused);
+    const active = S.tr.filter(t => t.status !== "fired").length, fired = 4 - active;
+    $("gridMeta").textContent = `${active} of 4 traders · 30s → Bot`;
+    $("agW").textContent = `watching ${active}`;
+    $("agE").textContent = `${S.fills} fills`;
+    $("agR").textContent = S.done ? "locked 7:00" : fired ? `${fired} fired · stop 7:00` : "stop 7:00 AM";
+    $("feedMeta").textContent = `${S.fills} copies tonight`;
+    $("feed").innerHTML = S.events.map(e => `<li><time class="num">${clockStr(e.t)}</time><span class="t">${e.text}</span>
+      <span class="v num ${e.amt == null ? "m" : e.amt >= 0 ? "g" : "r"}">${e.amt == null ? "" : (e.amt >= 0 ? "+" : "−") + money.format(Math.abs(e.amt))}</span></li>`).join("");
+    renderChart();
+    renderGrid();
+  }
+
+  function loop() { clearInterval(timer); timer = setInterval(() => { if (!paused) tick(); }, 900 / speed); }
+
+  document.querySelectorAll(".tf button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".tf button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    win = +b.dataset.w; renderChart();
+  }));
+  $("run").addEventListener("click", () => { paused = false; $("pause").textContent = "Pause"; init(); loop(); });
+  $("pause").addEventListener("click", () => { paused = !paused; $("pause").textContent = paused ? "Resume" : "Pause"; render(); });
+  $("speed").addEventListener("click", () => { speed = speed === 1 ? 4 : speed === 4 ? 12 : 1; $("speed").textContent = `Speed ${speed}×`; loop(); });
+
+  // Open mid-session so the first frame shows the dashboard working
+  init();
+  for (let i = 0; i < 60; i++) tick();
+  loop();
+})();
+</script>
+</body>
+</html>
